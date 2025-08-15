@@ -1,0 +1,256 @@
+# 한국어 환경 사용자 설정
+users:
+  # 관리자 계정
+  admin:
+    rpm: 100                    # 분당 100회 요청
+    tpm: 20000                  # 분당 20,000 토큰
+    tph: 1200000                # 시간당 1,200,000 토큰  
+    daily: 5000000              # 일일 5,000,000 토큰
+    cooldown_minutes: 1         # 제한 시 1분 대기
+    description: "시스템 관리자"
+
+  # 한국어 개발자 계정
+  한국어개발자:
+    rpm: 60                     # 분당 60회 요청
+    tpm: 10000                  # 분당 10,000 토큰
+    tph: 600000                 # 시간당 600,000 토큰
+    daily: 2000000              # 일일 2,000,000 토큰
+    cooldown_minutes: 2         # 제한 시 2분 대기
+    description: "한국어 모델 개발자"
+
+  개발자1:
+    rpm: 50
+    tpm: 8000
+    tph: 480000
+    daily: 1500000
+    cooldown_minutes: 2
+    description: "개발자 계정 1"
+
+  개발자2:
+    rpm: 50
+    tpm: 8000
+    tph: 480000
+    daily: 1500000
+    cooldown_minutes: 2  
+    description: "개발자 계정 2"
+
+  # 일반 사용자 계정
+  사용자1:
+    rpm: 20                     # 분당 20회 요청
+    tpm: 3000                   # 분당 3,000 토큰
+    tph: 180000                 # 시간당 180,000 토큰
+    daily: 500000               # 일일 500,000 토큰
+    cooldown_minutes: 5         # 제한 시 5분 대기
+    description: "일반 사용자 1"
+    
+  사용자2:
+    rpm: 20
+    tpm: 3000
+    tph: 180000
+    daily: 500000
+    cooldown_minutes: 5
+    description: "일반 사용자 2"
+
+  사용자3:
+    rpm: 15
+    tpm: 2000
+    tph: 120000
+    daily: 300000
+    cooldown_minutes: 5
+    description: "일반 사용자 3"
+
+  # 연구원 계정
+  연구원1:
+    rpm: 40
+    tpm: 6000
+    tph: 360000
+    daily: 1000000
+    cooldown_minutes: 3
+    description: "연구원 계정 1"
+
+  연구원2:
+    rpm: 40
+    tpm: 6000
+    tph: 360000
+    daily: 1000000
+    cooldown_minutes: 3
+    description: "연구원 계정 2"
+  
+  # 테스트 계정
+  테스트:
+    rpm: 10                     # 분당 10회 요청 (제한적)
+    tpm: 1000                   # 분당 1,000 토큰
+    tph: 60000                  # 시간당 60,000 토큰
+    daily: 100000               # 일일 100,000 토큰
+    cooldown_minutes: 10        # 제한 시 10분 대기
+    description: "테스트 계정"
+
+  # 게스트 계정 (매우 제한적)
+  게스트:
+    rpm: 5                      # 분당 5회 요청만
+    tpm: 500                    # 분당 500 토큰
+    tph: 30000                  # 시간당 30,000 토큰
+    daily: 50000                # 일일 50,000 토큰
+    cooldown_minutes: 15        # 제한 시 15분 대기
+    description: "게스트 계정"
+
+  # 데모 계정 
+  데모:
+    rpm: 8
+    tpm: 800
+    tph: 48000
+    daily: 80000
+    cooldown_minutes: 20
+    description: "데모용 계정"
+
+# API 키 매핑 (한국어 사용자명 지원)
+api_keys:
+  # 관리자
+  "sk-admin-korean-key-123": "admin"
+  
+  # 개발자
+  "sk-dev-korean-key-456": "한국어개발자"
+  "sk-dev1-korean-key-789": "개발자1" 
+  "sk-dev2-korean-key-abc": "개발자2"
+  
+  # 일반 사용자  
+  "sk-user1-korean-key-def": "사용자1"
+  "sk-user2-korean-key-ghi": "사용자2"
+  "sk-user3-korean-key-jkl": "사용자3"
+  
+  # 연구원
+  "sk-researcher1-key-mno": "연구원1"
+  "sk-researcher2-key-pqr": "연구원2"
+  
+  # 테스트 및 게스트
+  "sk-test-korean-key-stu": "테스트"
+  "sk-guest-korean-key-vwx": "게스트"
+  "sk-demo-korean-key-yz1": "데모"
+
+# 그룹별 설정 (선택사항)
+groups:
+  관리자그룹:
+    users: [admin]
+    shared_limits:
+      rpm: 200
+      tpm: 40000
+      tph: 2400000
+      daily: 10000000
+    description: "시스템 관리자 그룹"
+  
+  개발자그룹:
+    users: [한국어개발자, 개발자1, 개발자2]
+    shared_limits:
+      rpm: 200
+      tpm: 30000
+      tph: 1800000
+      daily: 6000000
+    description: "개발자 그룹"
+  
+  연구원그룹:
+    users: [연구원1, 연구원2]
+    shared_limits:
+      rpm: 100
+      tpm: 15000
+      tph: 900000
+      daily: 3000000
+    description: "연구원 그룹"
+    
+  일반사용자그룹:
+    users: [사용자1, 사용자2, 사용자3]
+    shared_limits:
+      rpm: 60
+      tpm: 10000
+      tph: 600000
+      daily: 1500000
+    description: "일반 사용자 그룹"
+  
+  테스트그룹:
+    users: [테스트, 게스트, 데모]
+    shared_limits:
+      rpm: 30
+      tpm: 3000
+      tph: 180000
+      daily: 300000
+    description: "테스트 및 데모 그룹"
+
+# 시간대별 특별 제한 (선택사항)
+time_based_limits:
+  # 업무 시간 (09:00-18:00) - 더 관대한 제한
+  work_hours:
+    start_time: "09:00"
+    end_time: "18:00"
+    multiplier: 1.5  # 기본 제한의 1.5배
+    
+  # 야간 시간 (22:00-06:00) - 더 엄격한 제한  
+  night_hours:
+    start_time: "22:00"
+    end_time: "06:00"
+    multiplier: 0.5  # 기본 제한의 0.5배
+
+# 특별 이벤트 설정 (선택사항)
+special_events:
+  # 점검 시간
+  maintenance:
+    enabled: false
+    start_time: "03:00"
+    end_time: "04:00"
+    message: "시스템 점검 중입니다. 잠시 후 다시 시도해주세요."
+    
+  # 높은 부하 시간
+  high_load:
+    enabled: false
+    trigger_threshold: 80  # 전체 용량의 80% 사용 시
+    reduced_multiplier: 0.7  # 제한을 30% 더 엄격하게
+    message: "시스템 부하가 높습니다. 잠시 후 다시 시도해주세요."
+
+# 알림 설정
+notifications:
+  # 사용량 경고 알림
+  usage_warnings:
+    - threshold: 70  # 제한의 70% 도달 시
+      message: "사용량이 70%에 도달했습니다."
+    - threshold: 90  # 제한의 90% 도달 시  
+      message: "사용량이 90%에 도달했습니다. 주의하세요."
+      
+  # 쿨다운 알림
+  cooldown_notifications:
+    enabled: true
+    message: "사용량 제한으로 인해 일시적으로 차단되었습니다."
+
+# 사용자 권한 설정
+permissions:
+  # 통계 조회 권한
+  view_stats:
+    users: [admin, 한국어개발자, 개발자1, 개발자2]
+    
+  # 설정 변경 권한  
+  modify_settings:
+    users: [admin]
+    
+  # 사용량 초기화 권한
+  reset_usage:
+    users: [admin, 한국어개발자]
+
+# 백업 및 복구 설정
+backup:
+  enabled: true
+  interval: "1d"  # 매일 백업
+  retention_days: 30  # 30일간 보관
+  backup_path: "./backups"
+  
+# 성능 모니터링 임계값
+performance_thresholds:
+  max_response_time: 5.0  # 초
+  max_queue_size: 100
+  max_memory_usage: 80   # 퍼센트
+  max_error_rate: 5      # 퍼센트
+
+# 한국어 메시지 템플릿
+messages:
+  rate_limit_exceeded: "사용량 제한을 초과했습니다. {cooldown_minutes}분 후 다시 시도해주세요."
+  cooldown_active: "현재 쿨다운 중입니다. {remaining_seconds}초 후 다시 시도해주세요."
+  quota_exceeded: "일일 사용량 한도를 초과했습니다."
+  server_error: "서버 오류가 발생했습니다. 관리자에게 문의하세요."
+  invalid_request: "잘못된 요청입니다."
+  unauthorized: "인증되지 않은 사용자입니다."

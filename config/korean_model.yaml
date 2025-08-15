@@ -1,0 +1,67 @@
+# 한국어 Llama 모델 특화 설정
+server:
+  host: "0.0.0.0"
+  port: 8080
+  debug: false
+
+llm_server:
+  url: "http://localhost:8000"
+  model_name: "torchtorchkimtorch/Llama-3.2-Korean-GGACHI-1B-Instruct-v1"
+  
+  # vLLM 서버 설정 (RTX 4060 8GB 최적화)
+  vllm_args:
+    gpu_memory_utilization: 0.8  # RTX 4060 8GB의 80% 사용
+    max_model_len: 2048          # 컨텍스트 길이 (메모리 절약)
+    tensor_parallel_size: 1      # 단일 GPU
+    dtype: "half"                # FP16 사용 (메모리 절약)
+    enforce_eager: true          # CUDA 그래프 비활성화 (안정성)
+    trust_remote_code: true      # 한국어 모델 지원
+    disable_log_requests: true   # 로그 감소
+
+storage:
+  type: "redis"  # redis 또는 sqlite
+  redis_url: "redis://localhost:6379"
+  sqlite_path: "korean_usage.db"
+
+# 한국어 특화 기본 제한 (RTX 4060에 맞춰 보수적 설정)
+default_limits:
+  rpm: 30           # 분당 요청 수 (RTX 4060에 맞춰 낮춤)
+  tpm: 5000         # 분당 토큰 수 (한국어 토큰 특성 고려)
+  tph: 300000       # 시간당 토큰 수
+  daily: 500000     # 일일 토큰 수
+  cooldown_minutes: 3  # 제한 후 대기 시간 (짧게 설정)
+
+# 한국어 토큰 설정
+tokenizer:
+  model_name: "torchtorchkimtorch/Llama-3.2-Korean-GGACHI-1B-Instruct-v1"
+  max_length: 2048
+  korean_factor: 1.2  # 한국어 토큰 계산 보정값 (한글 1글자 ≈ 1.2 토큰)
+  cache_dir: "./tokenizer_cache"
+
+# 로깅 설정
+logging:
+  level: "INFO"
+  file: "logs/korean_token_limiter.log"
+  max_file_size: "10MB"
+  backup_count: 5
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# 모니터링 설정
+monitoring:
+  enable_metrics: true
+  metrics_port: 9090
+  health_check_interval: 30  # seconds
+  
+# 성능 최적화 설정
+performance:
+  # RTX 4060 8GB 최적화
+  max_concurrent_requests: 4    # 동시 처리 요청 수 제한
+  request_timeout: 300          # 요청 타임아웃 (초)
+  cleanup_interval: 300         # 데이터 정리 간격 (초)
+  
+# 보안 설정  
+security:
+  enable_cors: true
+  allowed_origins: ["*"]  # 프로덕션에서는 제한 필요
+  api_key_required: false  # API 키 필수 여부
+  rate_limit_by_ip: false  # IP 기반 제한 여부
