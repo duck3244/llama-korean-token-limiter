@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Korean Llama Token Limiter - 메인 애플리케이션 (인코딩 문제 수정)
+Korean Llama Token Limiter - 모델명 문제 수정
 """
 
 import asyncio
@@ -9,7 +9,6 @@ import time
 import logging
 import sys
 import os
-import base64
 import urllib.parse
 
 try:
@@ -44,6 +43,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 전역 변수로 실제 모델명 저장
+ACTUAL_MODEL_NAME = None
 
 
 class SimpleTokenCounter:
@@ -217,6 +219,51 @@ token_counter = SimpleTokenCounter()
 rate_limiter = SimpleRateLimiter()
 
 
+async def get_vllm_model_name():
+    """vLLM 서버에서 실제 모델명 조회"""
+    global ACTUAL_MODEL_NAME
+
+    if ACTUAL_MODEL_NAME:
+        return ACTUAL_MODEL_NAME
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get("http://localhost:8000/v1/models")
+
+            if response.status_code == 200:
+                models_data = response.json()
+                if 'data' in models_data and len(models_data['data']) > 0:
+                    ACTUAL_MODEL_NAME = models_data['data'][0]['id']
+                    logger.info(f"✅ 실제 vLLM 모델명: {ACTUAL_MODEL_NAME}")
+                    return ACTUAL_MODEL_NAME
+    except Exception as e:
+        logger.warning(f"⚠️ vLLM 모델명 조회 실패: {e}")
+
+    # 기본값들 시도
+    fallback_models = ["korean-llama", "distilgpt2", "gpt2"]
+    for model in fallback_models:
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                test_response = await client.post(
+                    "http://localhost:8000/v1/completions",
+                    json={
+                        "model": model,
+                        "prompt": "test",
+                        "max_tokens": 1
+                    }
+                )
+                if test_response.status_code == 200:
+                    ACTUAL_MODEL_NAME = model
+                    logger.info(f"✅ 작동하는 모델명 발견: {ACTUAL_MODEL_NAME}")
+                    return ACTUAL_MODEL_NAME
+        except:
+            continue
+
+    # 최후의 수단
+    ACTUAL_MODEL_NAME = "korean-llama"
+    return ACTUAL_MODEL_NAME
+
+
 def extract_user_id(request: Request) -> str:
     """요청에서 사용자 ID 추출 (ASCII 안전)"""
     # Authorization 헤더
@@ -233,7 +280,7 @@ def extract_user_id(request: Request) -> str:
     return "guest"
 
 
-def convert_to_completion_format(messages, model="distilgpt2"):
+def convert_to_completion_format(messages):
     """채팅 메시지를 completion 형태로 변환"""
     prompt_parts = []
 
@@ -322,7 +369,7 @@ async def token_limit_middleware(request: Request, call_next):
 
 @app.post("/v1/chat/completions")
 async def chat_completions_proxy(request: Request):
-    """채팅 완성 프록시 (completion API로 변환)"""
+    """채팅 완성 프록시 (실제 모델명 사용)"""
 
     body = await request.body()
     user_id = extract_user_id(request)
@@ -333,17 +380,22 @@ async def chat_completions_proxy(request: Request):
         max_tokens = request_data.get('max_tokens', 50)
         temperature = request_data.get('temperature', 0.7)
 
+        # 실제 모델명 조회
+        actual_model = await get_vllm_model_name()
+
         # 채팅 메시지를 프롬프트로 변환
         prompt = convert_to_completion_format(messages)
 
         # completion API 형태로 변환
         completion_request = {
-            "model": "distilgpt2",
+            "model": actual_model,  # 실제 모델명 사용
             "prompt": prompt,
             "max_tokens": max_tokens,
             "temperature": temperature,
-            "stop": ["\nUser:", "\nSystem:"]
+            "stop": ["\nUser:", "\nSystem:", "\n\n"]
         }
+
+        logger.info(f"🔄 vLLM 요청: 모델={actual_model}, 사용자={user_id}")
 
         # vLLM completion API 호출
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -353,9 +405,15 @@ async def chat_completions_proxy(request: Request):
             )
 
         if llm_response.status_code != 200:
+            error_detail = llm_response.text
+            logger.error(f"❌ vLLM 오류 (모델: {actual_model}): {error_detail}")
             return JSONResponse(
                 status_code=llm_response.status_code,
-                content={"error": "vLLM 서버 오류", "detail": llm_response.text}
+                content={
+                    "error": "vLLM 서버 오류",
+                    "detail": error_detail,
+                    "model_used": actual_model
+                }
             )
 
         completion_result = llm_response.json()
@@ -384,11 +442,12 @@ async def chat_completions_proxy(request: Request):
                 })
             }
 
+            logger.info(f"✅ 응답 생성 완료: 사용자={user_id}, 길이={len(generated_text)}")
             return JSONResponse(content=chat_response)
         else:
             return JSONResponse(
                 status_code=500,
-                content={"error": "응답 생성 실패"}
+                content={"error": "응답 생성 실패", "model_used": actual_model}
             )
 
     except httpx.ConnectError:
@@ -407,22 +466,31 @@ async def chat_completions_proxy(request: Request):
 
 @app.post("/v1/completions")
 async def completions_proxy(request: Request):
-    """텍스트 완성 프록시"""
+    """텍스트 완성 프록시 (실제 모델명 사용)"""
 
     body = await request.body()
     user_id = extract_user_id(request)
 
-    # 헤더 준비
-    headers = dict(request.headers)
-    headers.pop("host", None)
-    headers.pop("content-length", None)
-
     try:
+        request_data = json.loads(body)
+
+        # 실제 모델명으로 변경
+        actual_model = await get_vllm_model_name()
+        request_data["model"] = actual_model
+
+        # 수정된 요청 데이터
+        modified_body = json.dumps(request_data).encode('utf-8')
+
+        # 헤더 준비
+        headers = dict(request.headers)
+        headers.pop("host", None)
+        headers["content-length"] = str(len(modified_body))
+
         # vLLM 서버로 요청 전달
         async with httpx.AsyncClient(timeout=30.0) as client:
             llm_response = await client.post(
                 "http://localhost:8000/v1/completions",
-                content=body,
+                content=modified_body,
                 headers=headers
             )
 
@@ -459,17 +527,43 @@ async def health_check():
         async with httpx.AsyncClient(timeout=5.0) as client:
             vllm_response = await client.get("http://localhost:8000/health")
             vllm_status = vllm_response.status_code == 200
+
+        # 실제 모델명 조회
+        actual_model = await get_vllm_model_name()
+
     except:
         vllm_status = False
+        actual_model = "unknown"
 
     return {
         "status": "healthy",
         "vllm_server": "connected" if vllm_status else "disconnected",
         "model": "korean-llama",
+        "actual_vllm_model": actual_model,
         "supports_korean": True,
         "encoding": "utf-8_safe",
         "timestamp": time.time()
     }
+
+
+@app.get("/models")
+async def list_models():
+    """사용 가능한 모델 목록"""
+    try:
+        actual_model = await get_vllm_model_name()
+        return {
+            "data": [
+                {
+                    "id": "korean-llama",
+                    "object": "model",
+                    "created": int(time.time()),
+                    "owned_by": "korean-token-limiter",
+                    "actual_model": actual_model
+                }
+            ]
+        }
+    except Exception as e:
+        return {"error": f"모델 목록 조회 실패: {str(e)}"}
 
 
 @app.get("/stats/{user_id}")

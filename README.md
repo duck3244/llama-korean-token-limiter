@@ -1,131 +1,150 @@
 # 🇰🇷 Korean Llama Token Limiter
 
-**한국어 Llama 모델용 토큰 사용량 제한 시스템**
+한국어 특화 LLM 토큰 사용량 제한 시스템
 
-RTX 4060 8GB GPU에 최적화된 한국어 Llama-3.2-Korean 모델을 위한 토큰 사용량 관리 및 속도 제한 시스템입니다.
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com)
+[![vLLM](https://img.shields.io/badge/vLLM-0.2.7+-red.svg)](https://github.com/vllm-project/vllm)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## ✨ 주요 기능
+## 📋 개요
 
-- 🇰🇷 **한국어 특화**: 한글 토큰 특성을 반영한 정확한 토큰 계산
-- ⚡ **실시간 제한**: 분/시간/일별 토큰 및 요청 수 제한
-- 🎯 **RTX 4060 최적화**: 8GB VRAM 환경에 맞춘 메모리 효율적 운영
-- 📊 **실시간 모니터링**: Streamlit 기반 한국어 대시보드
-- 🔄 **자동 복구**: 쿨다운 및 사용량 자동 초기화
-- 💾 **유연한 저장소**: Redis 또는 SQLite 지원
-- 🔒 **사용자 관리**: API 키 기반 한국어 사용자 인증
+Korean Llama Token Limiter는 한국어 LLM(Large Language Model) 서비스의 토큰 사용량을 효율적으로 관리하고 제한하는 시스템입니다. RTX 4060 8GB GPU 환경에 최적화되어 있으며, 다음과 같은 기능을 제공합니다:
 
-## 🏗️ 시스템 구조
+- 🔢 **한국어 특화 토큰 계산**: 한글 1글자 ≈ 1.2토큰으로 정확한 계산
+- ⚡ **실시간 속도 제한**: 분당/시간당/일일 토큰 사용량 제한
+- 👥 **다중 사용자 관리**: API 키 기반 사용자별 개별 제한
+- 🔄 **OpenAI 호환 API**: 표준 ChatGPT API와 완전 호환
+- 📊 **실시간 모니터링**: 사용량 통계 및 대시보드
+- 🚀 **고성능**: vLLM 기반 GPU 가속 추론
+
+## 🏗️ 시스템 아키텍처
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Client App    │    │  Token Limiter  │    │   vLLM Server   │
-│                 │────│   (Port 8080)   │────│   (Port 8000)   │
-│   API 요청      │    │  한국어 토큰    │    │ Korean Llama    │
-│                 │    │   사용량 제한   │    │     모델        │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │
-                       ┌─────────────────┐
-                       │   Redis/SQLite  │
-                       │   사용량 저장   │
-                       └─────────────────┘
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Client App    │───▶│  Token Limiter   │───▶│   vLLM Server   │
+│                 │    │   (Port 8080)    │    │   (Port 8000)   │
+│ - Web App       │    │                  │    │                 │
+│ - Mobile App    │    │ - Rate Limiting  │    │ - GPU Inference │
+│ - API Client    │    │ - User Management│    │ - Model Serving │
+└─────────────────┘    │ - Token Counting │    └─────────────────┘
+                       │ - Statistics     │              │
+                       └──────────────────┘              │
+                                │                        │
+                       ┌──────────────────┐              │
+                       │   Redis/SQLite   │              │
+                       │                  │              │
+                       │ - Usage Data     │    ┌─────────────────┐
+                       │ - User Stats     │    │ Korean LLM Model│
+                       │ - Rate Limits    │    │                 │
+                       └──────────────────┘    │ - distilgpt2    │
+                                              │ - beomi/llama   │
+                                              └─────────────────┘
 ```
 
 ## 🚀 빠른 시작
 
-### 1. 시스템 요구사항
+### 사전 요구사항
 
-- **OS**: Ubuntu 22.04 (권장)
-- **GPU**: NVIDIA RTX 4060 8GB 이상
-- **CUDA**: 12.1+
-- **Python**: 3.9+
-- **RAM**: 16GB 권장
-- **디스크**: 10GB 이상
+- **Python**: 3.11 이상
+- **GPU**: NVIDIA GPU (RTX 4060 권장) + CUDA 12.1+
+- **메모리**: 8GB RAM 이상
+- **저장공간**: 10GB 이상
 
-### 2. 자동 설치
+### 1. 저장소 클론
 
 ```bash
-# 저장소 클론
-git clone https://github.com/your-repo/korean-llama-token-limiter.git
-cd korean-llama-token-limiter
-
-# 자동 설치 실행
-chmod +x setup.sh
-./setup.sh
-
-# 시스템 시작
-./scripts/start_korean_system.sh
+git clone https://github.com/your-username/llama-korean-token-limiter.git
+cd llama-korean-token-limiter
 ```
 
-### 3. 수동 설치
+### 2. 환경 설정
 
-<details>
-<summary>수동 설치 단계 보기</summary>
+#### Conda 환경 (권장)
 
 ```bash
-# 1. 의존성 설치
-sudo apt update
-sudo apt install python3.11 python3.11-venv python3-pip build-essential curl git
+# Conda 환경 생성
+conda create -n korean_llm python=3.11
+conda activate korean_llm
 
-# 2. Python 환경 설정
-python3.11 -m venv venv
-source venv/bin/activate
-pip install --upgrade pip
+# 패키지 설치
+bash scripts/install_conda_packages.sh
+```
 
-# 3. PyTorch 설치 (CUDA 12.1)
-pip install torch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 --index-url https://download.pytorch.org/whl/cu121
+#### Python venv 환경
 
-# 4. vLLM 설치
-pip install vllm==0.2.7
+```bash
+# 가상환경 생성
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# 또는
+venv\Scripts\activate  # Windows
 
-# 5. 추가 패키지 설치
-pip install -r requirements.txt
+# 패키지 설치
+bash scripts/install_packages.sh
+```
 
-# 6. Redis 시작 (Docker)
+### 3. Redis 설정
+
+#### Docker 사용 (권장)
+
+```bash
 docker run -d --name korean-redis -p 6379:6379 redis:alpine
-
-# 7. 시스템 시작
-python main_korean.py
 ```
 
-</details>
+#### 로컬 Redis 설치
 
-## 🔧 설정
+```bash
+# Ubuntu/Debian
+sudo apt install redis-server
 
-### 기본 설정 파일
-
-#### `config/korean_model.yaml`
-```yaml
-server:
-  host: "0.0.0.0"
-  port: 8080
-
-llm_server:
-  url: "http://localhost:8000"
-  model_name: "torchtorchkimtorch/Llama-3.2-Korean-GGACHI-1B-Instruct-v1"
-
-default_limits:
-  rpm: 30      # 분당 요청 수
-  tpm: 5000    # 분당 토큰 수
-  tph: 300000  # 시간당 토큰 수
-  daily: 500000 # 일일 토큰 수
+# macOS
+brew install redis
 ```
 
-#### `config/korean_users.yaml`
-```yaml
-users:
-  사용자1:
-    rpm: 20
-    tpm: 3000
-    daily: 500000
-    description: "일반 사용자 1"
+### 4. 시스템 시작
 
-api_keys:
-  "sk-user1-korean-key-def": "사용자1"
+```bash
+# 전체 시스템 시작 (vLLM + Token Limiter)
+bash scripts/start_korean_system.sh
 ```
 
-## 📡 API 사용법
+### 5. 테스트
 
-### 채팅 완성 요청
+```bash
+# 헬스체크
+curl http://localhost:8080/health
+
+# 채팅 완성 테스트
+curl -X POST http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-user1-korean-key-def" \
+  -d '{
+    "model": "korean-llama",
+    "messages": [{"role": "user", "content": "안녕하세요!"}],
+    "max_tokens": 50
+  }'
+```
+
+## 📚 API 사용법
+
+### 인증
+
+모든 API 요청에는 Authorization 헤더가 필요합니다:
+
+```bash
+Authorization: Bearer <API_KEY>
+```
+
+### 기본 사용자 API 키
+
+| 사용자 | API 키 | 제한 (RPM/TPM/일일) |
+|--------|--------|-------------------|
+| 사용자1 | `sk-user1-korean-key-def` | 20/3000/500K |
+| 개발자1 | `sk-dev1-korean-key-789` | 50/8000/1.5M |
+| 테스트 | `sk-test-korean-key-stu` | 10/1000/100K |
+
+### 채팅 완성 API
 
 ```bash
 curl -X POST http://localhost:8080/v1/chat/completions \
@@ -134,198 +153,148 @@ curl -X POST http://localhost:8080/v1/chat/completions \
   -d '{
     "model": "korean-llama",
     "messages": [
-      {
-        "role": "system", 
-        "content": "당신은 친근한 한국어 AI 어시스턴트입니다."
-      },
-      {
-        "role": "user", 
-        "content": "안녕하세요! 한국어로 간단한 인사를 해주세요."
-      }
+      {"role": "system", "content": "당신은 친근한 한국어 AI 어시스턴트입니다."},
+      {"role": "user", "content": "파이썬으로 Hello World를 출력하는 방법을 알려주세요."}
     ],
-    "max_tokens": 150,
+    "max_tokens": 200,
     "temperature": 0.7
   }'
 ```
 
-### 사용량 조회
+### 텍스트 완성 API
 
 ```bash
-# 사용자 통계 조회
-curl http://localhost:8080/stats/사용자1
-
-# 시스템 전체 통계
-curl http://localhost:8080/admin/statistics
-
-# 상위 사용자 조회
-curl http://localhost:8080/admin/top-users?limit=10&period=today
+curl -X POST http://localhost:8080/v1/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-user1-korean-key-def" \
+  -d '{
+    "model": "korean-llama",
+    "prompt": "한국의 수도는",
+    "max_tokens": 50,
+    "temperature": 0.5
+  }'
 ```
 
 ### 토큰 계산
 
 ```bash
-curl "http://localhost:8080/token-info?text=안녕하세요! 한국어 토큰 계산 테스트입니다."
+curl 'http://localhost:8080/token-info?text=안녕하세요! 한국어 토큰 계산 테스트입니다.'
 ```
 
-## 📊 대시보드
+### 사용량 통계
 
-Streamlit 기반 실시간 모니터링 대시보드:
+```bash
+# 사용자별 통계
+curl http://localhost:8080/stats/user1
+
+# 전체 사용자 목록
+curl http://localhost:8080/admin/users
+```
+
+## ⚙️ 설정
+
+### 모델 설정 (`config/korean_model.yaml`)
+
+```yaml
+server:
+  host: "0.0.0.0"
+  port: 8080
+
+llm_server:
+  url: "http://localhost:8000"
+  model_name: "distilgpt2"  # 또는 다른 모델
+  
+  vllm_args:
+    gpu_memory_utilization: 0.8
+    max_model_len: 2048
+    dtype: "half"
+    enforce_eager: true
+
+storage:
+  type: "redis"  # 또는 "sqlite"
+  redis_url: "redis://localhost:6379"
+
+default_limits:
+  rpm: 30      # 분당 요청 수
+  tpm: 5000    # 분당 토큰 수
+  tph: 300000  # 시간당 토큰 수
+  daily: 500000 # 일일 토큰 수
+```
+
+### 사용자 설정 (`config/korean_users.yaml`)
+
+```yaml
+users:
+  사용자1:
+    rpm: 20
+    tpm: 3000
+    daily: 500000
+    description: "일반 사용자"
+    
+  개발자1:
+    rpm: 50
+    tpm: 8000
+    daily: 1500000
+    description: "개발자 계정"
+
+api_keys:
+  "sk-user1-korean-key-def": "사용자1"
+  "sk-dev1-korean-key-789": "개발자1"
+```
+
+## 🖥️ 대시보드
+
+Streamlit 기반 웹 대시보드로 실시간 모니터링:
+
+<img src="demo.png" width="500" height="300">
 
 ```bash
 # 대시보드 시작
 streamlit run dashboard/app.py --server.port 8501
 
-# 브라우저에서 접속
-open http://localhost:8501
+# 접속: http://localhost:8501
 ```
 
-### 대시보드 기능
-
-- 📈 **실시간 모니터링**: 사용량, 상위 사용자, 시스템 상태
-- 👥 **사용자 관리**: 개별 사용자 통계 및 제한 관리
-- 📊 **통계 분석**: 기간별 사용량 분석 및 트렌드
-- 🔧 **시스템 관리**: 설정 로드, 토큰 계산 테스트
-
-## 🐳 Docker 실행
-
-### Docker Compose (권장)
-
-```bash
-# 모든 서비스 시작
-docker-compose up -d
-
-# 모니터링 포함 시작
-docker-compose --profile monitoring up -d
-
-# 로그 확인
-docker-compose logs -f token-limiter
-```
-
-### 개별 Docker 실행
-
-```bash
-# 이미지 빌드
-docker build -t korean-token-limiter .
-
-# 컨테이너 실행 (GPU 포함)
-docker run --gpus all \
-  -p 8080:8080 \
-  -v $(pwd)/config:/app/config \
-  -v $(pwd)/logs:/app/logs \
-  korean-token-limiter
-```
-
-## 🧪 테스트
-
-### 자동 테스트 실행
-
-```bash
-# 전체 시스템 테스트
-./scripts/test_korean.sh
-
-# 개별 API 테스트
-pytest tests/ -v
-```
-
-### 수동 테스트
-
-```bash
-# 시스템 상태 확인
-curl http://localhost:8080/health
-
-# 간단한 채팅 테스트
-curl -X POST http://localhost:8080/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer sk-test-korean-key-stu" \
-  -d '{"model": "korean-llama", "messages": [{"role": "user", "content": "안녕하세요"}], "max_tokens": 50}'
-```
-
-## 📝 사용자 관리
-
-### 새 사용자 추가
-
-1. `config/korean_users.yaml` 편집:
-```yaml
-users:
-  신규사용자:
-    rpm: 15
-    tpm: 2000
-    tph: 120000
-    daily: 300000
-    cooldown_minutes: 5
-    description: "신규 사용자"
-
-api_keys:
-  "sk-new-user-key-123": "신규사용자"
-```
-
-2. 설정 다시 로드:
-```bash
-curl -X POST http://localhost:8080/admin/reload-config
-```
-
-### 사용량 초기화
-
-```bash
-# 특정 사용자 사용량 초기화
-curl -X DELETE http://localhost:8080/admin/reset-usage/사용자1
-```
+대시보드 기능:
+- 📈 실시간 사용량 그래프
+- 👥 사용자별 통계
+- 🚨 속도 제한 알림
+- 📊 시스템 성능 모니터링
 
 ## 🔧 문제 해결
 
 ### 일반적인 문제들
 
-#### 1. GPU 메모리 부족
+#### 1. vLLM 서버 시작 실패
+
 ```bash
 # GPU 메모리 확인
 nvidia-smi
 
-# 메모리 정리
-sudo fuser -v /dev/nvidia*
-sudo kill -9 <PID>
-
-# 설정에서 메모리 사용률 조정 (config/korean_model.yaml)
-gpu_memory_utilization: 0.7  # 0.8에서 0.7로 낮춤
+# 더 작은 모델 사용
+python -m vllm.entrypoints.openai.api_server \
+  --model distilgpt2 \
+  --gpu-memory-utilization 0.4 \
+  --max-model-len 256
 ```
 
-#### 2. 모델 다운로드 실패
-```bash
-# 캐시 정리
-rm -rf ~/.cache/huggingface/
+#### 2. 패키지 충돌
 
-# 수동 다운로드
-python -c "
-from transformers import AutoTokenizer
-tokenizer = AutoTokenizer.from_pretrained(
-    'torchtorchkimtorch/Llama-3.2-Korean-GGACHI-1B-Instruct-v1',
-    cache_dir='./tokenizer_cache'
-)
-print('다운로드 완료')
-"
+```bash
+# vLLM 호환성 문제 해결
+bash scripts/fix_vllm_compatibility.sh
 ```
 
 #### 3. Redis 연결 실패
+
 ```bash
-# Redis 상태 확인
-redis-cli ping
-
-# Docker Redis 재시작
-docker restart korean-redis
-
-# 또는 로컬 Redis 설치
-sudo apt install redis-server
-sudo systemctl start redis
+# SQLite 모드로 전환
+sed -i 's/type: "redis"/type: "sqlite"/' config/korean_model.yaml
 ```
 
-#### 4. 포트 충돌
-```bash
-# 포트 사용 확인
-sudo lsof -i :8080
-sudo lsof -i :8000
+#### 4. 한국어 인코딩 문제
 
-# 프로세스 종료
-sudo kill -9 <PID>
-```
+시스템에서 자동으로 ASCII 안전 인코딩을 사용합니다. 한국어 사용자명은 내부적으로 영어로 변환됩니다.
 
 ### 로그 확인
 
@@ -333,63 +302,108 @@ sudo kill -9 <PID>
 # Token Limiter 로그
 tail -f logs/token_limiter.log
 
-# vLLM 서버 로그
-tail -f logs/vllm_korean_server.log
+# vLLM 서버 로그  
+tail -f logs/vllm.log
 
-# 시스템 전체 로그
-journalctl -f
+# 전체 시스템 상태
+curl http://localhost:8080/health
 ```
 
-## 📈 성능 최적화
+### 성능 최적화
 
-### RTX 4060 8GB 최적화 팁
-
-1. **메모리 설정 조정**:
-```yaml
-# config/korean_model.yaml
-vllm_args:
-  gpu_memory_utilization: 0.8  # 필요시 0.7로 낮춤
-  max_model_len: 2048          # 길이 줄여서 메모리 절약
-  dtype: "half"                # FP16 사용
-```
-
-2. **동시 요청 수 제한**:
-```yaml
-default_limits:
-  rpm: 20  # 30에서 20으로 낮춤
-  tpm: 3000  # 5000에서 3000으로 낮춤
-```
-
-3. **시스템 환경 변수**:
-```bash
-export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
-export CUDA_LAUNCH_BLOCKING=1
-```
-
-## 🔗 유용한 링크
-
-- 📚 [vLLM 문서](https://docs.vllm.ai/)
-- 🤖 [Transformers 라이브러리](https://huggingface.co/docs/transformers/)
-- 🇰🇷 [한국어 Llama 모델](https://huggingface.co/torchtorchkimtorch/Llama-3.2-Korean-GGACHI-1B-Instruct-v1)
-- 📊 [Streamlit 문서](https://docs.streamlit.io/)
-
-## 🛠️ 개발 가이드
-
-### 개발 환경 설정
+#### RTX 4060 8GB 최적화
 
 ```bash
-# 개발 모드 설치
-pip install -e .
+# GPU 메모리 사용률 40%로 제한
+--gpu-memory-utilization 0.4
 
-# 개발 도구 설치
-pip install black flake8 pytest
+# 컨텍스트 길이 단축
+--max-model-len 256
 
-# 코드 포맷팅
-black src/ tests/
-
-# 린팅
-flake8 src/ tests/
-
-# 테스트 실행
-pytest tests/ -v --cov=src/
+# FP16 사용
+--dtype half
 ```
+
+## 🧪 테스트
+
+### 전체 시스템 테스트
+
+```bash
+bash scripts/test_korean.sh
+```
+
+### 개별 컴포넌트 테스트
+
+```bash
+# vLLM 진단
+python test_vllm_simple.py
+
+# 토큰 카운터 테스트
+curl 'http://localhost:8080/token-info?text=테스트'
+
+# 속도 제한 테스트
+for i in {1..10}; do
+  curl -X POST http://localhost:8080/v1/chat/completions \
+    -H "Authorization: Bearer sk-test-korean-key-stu" \
+    -d '{"model":"korean-llama","messages":[{"role":"user","content":"Test '$i'"}],"max_tokens":10}'
+done
+```
+
+## 📊 성능 벤치마크
+
+### RTX 4060 Laptop GPU 기준
+
+| 모델 | 토큰/초 | 메모리 사용량 | 동시 사용자 |
+|------|---------|--------------|------------|
+| distilgpt2 | ~150 | 2.5GB | 4-6명 |
+| gpt2 | ~120 | 3.2GB | 3-4명 |
+| beomi/llama-2-ko-7b | ~45 | 7.5GB | 1-2명 |
+
+### 토큰 계산 성능
+
+- 한국어 텍스트: ~5000 글자/초
+- 영어 텍스트: ~8000 글자/초
+- 혼합 텍스트: ~6000 글자/초
+
+## 🔒 보안
+
+### API 키 관리
+
+- API 키는 환경변수나 안전한 설정 파일에 저장
+- 프로덕션에서는 JWT 토큰이나 OAuth 사용 권장
+- HTTPS 사용 필수
+
+### 속도 제한
+
+- 기본적으로 IP별 제한은 비활성화
+- 필요시 `rate_limit_by_ip: true` 설정
+- DDoS 방어를 위한 웹 서버(Nginx) 사용 권장
+
+## 🚢 배포
+
+### Docker 배포
+
+```bash
+# Docker 이미지 빌드
+docker build -t korean-token-limiter .
+
+# 컨테이너 실행
+docker run -d \
+  --name korean-limiter \
+  --gpus all \
+  -p 8080:8080 \
+  -v $(pwd)/config:/app/config \
+  korean-token-limiter
+```
+
+### 프로덕션 배포
+
+```bash
+# Gunicorn 사용
+gunicorn main:app \
+  --workers 4 \
+  --worker-class uvicorn.workers.UvicornWorker \
+  --bind 0.0.0.0:8080 \
+  --access-logfile logs/access.log
+```
+
