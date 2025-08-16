@@ -1,0 +1,182 @@
+# 한국어 Llama Token Limiter Docker Compose 설정
+version: '3.8'
+
+services:
+  # Redis 서비스
+  redis:
+    image: redis:alpine
+    container_name: korean-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - korean-network
+
+  # vLLM 서버 (GPU 필요)
+  vllm-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.vllm
+    container_name: korean-vllm
+    ports:
+      - "8000:8000"
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+      - MODEL_NAME=torchtorchkimtorch/Llama-3.2-Korean-GGACHI-1B-Instruct-v1
+      - GPU_MEMORY_UTILIZATION=0.8
+      - MAX_MODEL_LEN=2048
+    volumes:
+      - ./tokenizer_cache:/app/tokenizer_cache
+      - ./logs:/app/logs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - korean-network
+
+  # Token Limiter 서비스
+  token-limiter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: korean-token-limiter
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+      - LLM_SERVER_URL=http://vllm-server:8000
+      - REDIS_URL=redis://redis:6379
+      - STORAGE_TYPE=redis
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./config:/app/config
+      - ./logs:/app/logs
+      - ./tokenizer_cache:/app/tokenizer_cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      redis:
+        condition: service_healthy
+      vllm-server:
+        condition: service_healthy
+    networks:
+      - korean-network
+
+  # 대시보드 서비스
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    container_name: korean-dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      - API_BASE_URL=http://token-limiter:8080
+    volumes:
+      - ./dashboard:/app/dashboard
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      token-limiter:
+        condition: service_healthy
+    networks:
+      - korean-network
+
+  # 모니터링 서비스 (Prometheus - 선택사항)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: korean-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - korean-network
+    profiles:
+      - monitoring
+
+  # Grafana 대시보드 (선택사항)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: korean-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=korean123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      - korean-network
+    profiles:
+      - monitoring
+
+# 네트워크 설정
+networks:
+  korean-network:
+    driver: bridge
+
+# 볼륨 설정
+volumes:
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# 확장 설정 (개발/프로덕션 환경별)
+x-common-variables: &common-variables
+  TZ: Asia/Seoul
+  PYTHONPATH: /app
+  PYTHONIOENCODING: utf-8
+
+# 프로덕션 오버라이드 설정
+# docker-compose -f docker-compose.yml -f docker-compose.prod.yml up

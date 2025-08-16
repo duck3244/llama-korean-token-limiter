@@ -4,7 +4,7 @@ Rate limiter for Korean token usage control
 
 import time
 import asyncio
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, List
 from dataclasses import dataclass, asdict
 from enum import Enum
 import logging
@@ -304,7 +304,7 @@ class KoreanRateLimiter:
         
         # 한국어, 영어, 숫자, 일부 특수문자 허용
         import re
-        pattern = r'^[가-힣a-zA-Z0-9_\-\.]+
+        pattern = "r'^[가-힣a-zA-Z0-9_\-\.]+"
         return bool(re.match(pattern, user_id))
     
     async def bulk_update_limits(self, user_limits_dict: Dict[str, UserLimits]):
