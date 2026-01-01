@@ -51,14 +51,7 @@ Korean Llama Token Limiter는 한국어 LLM(Large Language Model) 서비스의 �
 - **메모리**: 8GB RAM 이상
 - **저장공간**: 10GB 이상
 
-### 1. 저장소 클론
-
-```bash
-git clone https://github.com/your-username/llama-korean-token-limiter.git
-cd llama-korean-token-limiter
-```
-
-### 2. 환경 설정
+### 1. 환경 설정
 
 #### Conda 환경 (권장)
 
@@ -84,7 +77,7 @@ venv\Scripts\activate  # Windows
 bash scripts/install_packages.sh
 ```
 
-### 3. Redis 설정
+### 2. Redis 설정
 
 #### Docker 사용 (권장)
 
@@ -102,14 +95,14 @@ sudo apt install redis-server
 brew install redis
 ```
 
-### 4. 시스템 시작
+### 3. 시스템 시작
 
 ```bash
 # 전체 시스템 시작 (vLLM + Token Limiter)
 bash scripts/start_korean_system.sh
 ```
 
-### 5. 테스트
+### 4. 테스트
 
 ```bash
 # 헬스체크
@@ -406,4 +399,4 @@ gunicorn main:app \
   --bind 0.0.0.0:8080 \
   --access-logfile logs/access.log
 ```
-
+---
